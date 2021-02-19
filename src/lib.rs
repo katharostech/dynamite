@@ -1,7 +1,13 @@
 //! Dynamite is a language-agnostic scripting system for the Rust programming language. Dynamite
-//! makes it easy to integrate scripting languages into your rust program and is special in way that
-//! it allows multiple scripting languages and the core program to integrate with each other at the
-//! same time.
+//! makes it easy to integrate scripting languages into your Rust program and is special in the way
+//! that it orchestrates communication not only between the host program and the scripting
+//! languages, but also allows each scripting language to interact with data in the other scripting
+//! languages as well.
+//!
+//! Dynamite is not currently usable, but is being developed as a component for the [Arsenal] game
+//! engine.
+//!
+//! [Arsenal]: https://github.com/katharostech/arsenal 
 
 #[macro_use]
 extern crate dlopen_derive;
