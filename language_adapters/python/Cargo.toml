@@ -1,0 +1,18 @@
+[package]
+name = "dynamite_python"
+version = "0.1.0"
+authors = ["Zicklag <zicklag@katharostech.com>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+rustpython-vm = { git = "https://github.com/katharostech/RustPython.git", branch = "feature/public-into-getset-traits" }
+rustpython-common = { git = "https://github.com/katharostech/RustPython.git", branch = "feature/public-into-getset-traits" }
+
+serde_cbor = "0.11.1"
+lazy_static = "1"
+
+dynamite = { path = "../../../dynamite" }
+safer-ffi = { version = "0.0.5", features = ["proc_macros"] }
