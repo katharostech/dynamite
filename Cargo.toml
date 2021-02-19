@@ -3,6 +3,19 @@ name = "dynamite"
 version = "0.0.1"
 authors = ["Zicklag <zicklag@katharostech.com>"]
 edition = "2018"
+license-file = "LICENSE.md"
+description = "A language-agnostic scripting solution for Rust programs"
+repository = "https://github.com/katharostech/dynamite"
+documentation = "https://docs.rs/dynamite"
+readme = "README.md"
+keywords = ["scripting", "languages", "dynamic"]
+categories = [
+    "development-tools::ffi",
+]
+
+exclude = [
+    "language_adapters"
+]
 
 [workspace]
 members = [
