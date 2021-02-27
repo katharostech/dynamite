@@ -17,15 +17,24 @@ exclude = [
     "language_adapters"
 ]
 
+[features]
+default = []
+derive = ["dynamite_macros", "once_cell"]
+
 [workspace]
 members = [
     ".",
+    "dynamite_macros",
     "language_adapters/python"
 ]
 
 [dependencies]
+dynamite_macros = { version = "0.0.1", path = "./dynamite_macros", optional = true }
+once_cell = { version = "1.7.0", optional = true }
+
 safer-ffi = { version = "0.0.5", features = ["proc_macros"] }
 serde = { version = "1.0.117", features = ["derive"] }
 dlopen = "0.1.8"
 dlopen_derive = "0.1.4"
 serde_cbor = "0.11.1"
+thiserror = "1.0.24"

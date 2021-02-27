@@ -8,11 +8,7 @@ edition = "2018"
 crate-type = ["cdylib"]
 
 [dependencies]
-rustpython-vm = { git = "https://github.com/katharostech/RustPython.git", branch = "feature/public-into-getset-traits" }
-rustpython-common = { git = "https://github.com/katharostech/RustPython.git", branch = "feature/public-into-getset-traits" }
-
-serde_cbor = "0.11.1"
-lazy_static = "1"
-
-dynamite = { path = "../../../dynamite" }
+dynamite = { path = "../../../dynamite", features = ["derive"] }
 safer-ffi = { version = "0.0.5", features = ["proc_macros"] }
+
+rustpython-vm = { git = "https://github.com/RustPython/RustPython.git", rev = "3ce476c13d4daa3366e012a96a5e52e271ed2b29" }
