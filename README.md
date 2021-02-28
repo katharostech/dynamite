@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize dynamite
     let mut dynamite = Dynamite::new();
 
-    // Load langauge adapter ( relatively safe, but still unsafe because dynamic libraries
+    // Load language adapter ( relatively safe, but still unsafe because dynamic libraries
     // could do _anything_ 👀 )
     unsafe {
         dynamite.load_dynamic_library_language_adapter("./target/debug/libdynamite_python.so")?
