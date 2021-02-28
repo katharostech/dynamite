@@ -8,14 +8,14 @@ struct PythonAdapter;
 
 impl DynamicLibLanguageAdapter for PythonAdapter {
     /// Initialize adapter
-    fn init_adapter(_host_functions: &HostFunctions) -> Self {
+    fn init_adapter() -> Self {
         PythonAdapter
     }
 }
 
 impl LanguageAdapter for PythonAdapter {
     /// Get the adapter's API
-    fn get_api(&self, _host_functions: &HostFunctions) -> ScriptApi {
+    fn get_api(&self, _host_functions: &dyn HostFunctions) -> ScriptApi {
         let mut components = ScriptApi::default();
 
         components.insert(
@@ -38,16 +38,18 @@ impl LanguageAdapter for PythonAdapter {
     /// Call functions provided by this adapter
     fn call_function(
         &self,
-        _host_functions: &HostFunctions,
+        host_functions: &dyn HostFunctions,
         path: &str,
-        args: &[*const dynamite::Erased],
-    ) -> *const dynamite::Erased {
+        args: &[*const dynamite::Void],
+    ) -> *const dynamite::Void {
         if path == "python::test_function" {
             let arg1 = args[0];
 
-            let number = unsafe { &*(arg1 as *const i32) };
+            let number = unsafe { &*(arg1 as *const f32) };
 
             println!("The number is: {}", number);
+
+            dbg!(host_functions.get_full_api());
         }
 
         std::ptr::null()

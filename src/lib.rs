@@ -13,9 +13,8 @@
 extern crate dlopen_derive;
 
 mod language_adapter;
-use std::ffi::OsStr;
+use std::{collections::HashMap, ffi::OsStr};
 
-use dlopen::wrapper::Container;
 pub use language_adapter::*;
 
 mod types;
@@ -33,7 +32,14 @@ pub mod _macros_private {
 /// The main struct used to create a Dynamite host and load language adapters
 #[derive(Default)]
 pub struct Dynamite {
+    /// The set of language adapters
     adapters: Vec<Box<dyn LanguageAdapter>>,
+
+    /// A cache of the APIs provided by loaded adapters
+    api_cache: Vec<ScriptApi>,
+
+    /// Mapping of [`TypePath`]s to the adapter/api_cache index that provides that type
+    type_adapter_index: HashMap<TypePath, usize>,
 }
 
 impl Dynamite {
@@ -42,13 +48,133 @@ impl Dynamite {
         Default::default()
     }
 
-    /// Load a language adapter
-    pub fn load_dynamic_library<P: AsRef<OsStr>>(&mut self, path: P) -> Result<(), dlopen::Error> {
-        let api: Container<LanguageAdapterCApi> = unsafe { Container::load(path)? };
+    /// Load a language adapter from a dynamically linked library
+    ///
+    /// This allows you to load language adapters from .dll ( Windows ), .so ( Linux ), or .dylib (
+    /// Mac ) files.
+    pub fn load_dynamic_library_language_adapter<P: AsRef<OsStr>>(
+        &mut self,
+        path: P,
+    ) -> Result<(), DynamiteError> {
+        // Create the C function pointers used to call dynamite functions from the dynamic library
+        let pointers = CHostFunctionPointers {
+            get_full_api: ffi::dynamite_get_full_api,
+        };
 
-        self.adapters
-            .push(Box::new(LoadedDynamicLibLanguageAdapter::new(api)));
+        // Add the language adapter
+        self.add_language_adapter(Box::new(LoadedDynamicLibLanguageAdapter::load(
+            path, pointers,
+        )?))?;
 
         Ok(())
+    }
+
+    /// Add a language adapter from any type implementing [`LanguageAdapter`]
+    ///
+    /// This can be used to easily add native Rust bindings to the scripting API.
+    pub fn add_language_adapter(
+        &mut self,
+        adapter: Box<dyn LanguageAdapter>,
+    ) -> Result<(), ApiError> {
+        // Load the adapter API
+        let api = adapter.get_api(self);
+
+        // Check for conflicting types
+        for path in api.keys() {
+            if self.type_adapter_index.contains_key(path) {
+                return Err(ApiError::TypeRedefined(path.clone()));
+            }
+        }
+
+        // Add types to the adapter type_adapter_index
+        for path in api.keys() {
+            // Map the type path to the the index of this adapter
+            self.type_adapter_index
+                .insert(path.clone(), self.api_cache.len());
+        }
+
+        // Add the types to the cache
+        self.api_cache.push(api);
+
+        // Add the adapter to the list
+        self.adapters.push(adapter);
+
+        Ok(())
+    }
+
+    /// Call a function in the api script api
+    ///
+    /// # Errors
+    /// Returns an error if the function could not be found
+    pub fn call_function(
+        &mut self,
+        path: &TypePath,
+        args: &[*const Void],
+    ) -> Result<*const Void, ApiError> {
+        let adapter = self
+            .adapters
+            .get(
+                *self
+                    .type_adapter_index
+                    .get(path)
+                    .ok_or(ApiError::NotFound(path.clone()))?,
+            )
+            .expect("Internal error finding adapter");
+
+        Ok(adapter.call_function(self, path, args))
+    }
+}
+
+impl HostFunctions for Dynamite {
+    fn get_full_api(&self) -> ScriptApi {
+        let mut full_api = ScriptApi::new();
+
+        for api in &self.api_cache {
+            full_api.extend(api.clone().into_iter());
+        }
+
+        full_api
+    }
+
+    fn as_dynamite(&self) -> &Dynamite {
+        self
+    }
+}
+
+mod ffi {
+    use super::*;
+
+    /// C function for getting the full dynamite API
+    pub(super) extern "C" fn dynamite_get_full_api(
+        dynamite: *const Void,
+    ) -> safer_ffi::prelude::repr_c::Vec<u8> {
+        let dynamite = unsafe { &*(dynamite as *const Dynamite) };
+
+        serde_cbor::to_vec(&dynamite.get_full_api())
+            .expect("Could not serialize script API")
+            .into()
+    }
+}
+
+pub use error::*;
+mod error {
+    use super::*;
+
+    /// An error that ocurred when trying to access the scripting API
+    #[derive(thiserror::Error, Debug)]
+    pub enum DynamiteError {
+        #[error("Script API error: {0}")]
+        ApiError(#[from] ApiError),
+        #[error("Error loading dynamic library: {0}")]
+        DynamicLibError(#[from] dlopen::Error),
+    }
+
+    /// An error that ocurred when trying to access the scripting API
+    #[derive(thiserror::Error, Debug)]
+    pub enum ApiError {
+        #[error("The requested API element was not found: {0}")]
+        NotFound(TypePath),
+        #[error("Loaded adapter re-defineds type already defined by another adapter: {0}")]
+        TypeRedefined(TypePath),
     }
 }

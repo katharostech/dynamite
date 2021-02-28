@@ -3,14 +3,14 @@ use serde::{Deserialize, Serialize};
 
 use std::{borrow::Cow, collections::HashMap};
 
-pub use ty::Erased;
+pub use ty::Void;
 mod ty {
     use safer_ffi::derive_ReprC;
 
     #[derive_ReprC]
     #[ReprC::opaque]
     /// A type used to represent an untyped pointer
-    pub struct Erased {
+    pub struct Void {
         _private: (),
     }
 }

@@ -18,56 +18,73 @@ fn impl_language_adapter(derive_input: DeriveInput, raw_input: TokenStream2) -> 
         // Output the input unchanged
         #raw_input
 
-        // Create cell for holding the host functions that we will get upon adapter initialization
-        static HOST_FUNCTIONS: #macros_private::once_cell::sync::OnceCell<HostFunctions>
-            = #macros_private::once_cell::sync::OnceCell::new();
+        mod ffi {
+            use dynamite::{DynamicLibLanguageAdapter, LanguageAdapter};
 
-        // Create cell for the adapter
-        static ADAPTER: #macros_private::once_cell::sync::OnceCell<#adapter_ty>
-            = #macros_private::once_cell::sync::OnceCell::new();
+            // Create cell for holding the host functions that we will get upon adapter initialization
+            static HOST_FUNCTION_POINTERS:
+                #macros_private::once_cell::sync::OnceCell<dynamite::CHostFunctionPointers>
+                = #macros_private::once_cell::sync::OnceCell::new();
 
-        #[safer_ffi::ffi_export]
-        fn init_adapter(c_host_functions: dynamite::CHostFunctions) {
-            // Create more Rusty HostFunctions from CHostFunctions
-            let host_funcs = dynamite::HostFunctions::new(c_host_functions);
+            // Create cell for the adapter
+            static ADAPTER: #macros_private::once_cell::sync::OnceCell<super::#adapter_ty>
+                = #macros_private::once_cell::sync::OnceCell::new();
 
-            // Initialize host functions cell
-            HOST_FUNCTIONS.set(host_funcs).map_err(|_| "Cannot initialize cell twice!").unwrap();
+            #[safer_ffi::ffi_export]
+            fn init_adapter(c_host_functions: dynamite::CHostFunctionPointers) {
+                // Initialize host functions cell
+                HOST_FUNCTION_POINTERS.set(c_host_functions).map_err(|_| "Cannot initialize cell twice!").unwrap();
 
-            // Initialize adapter
-            ADAPTER.set(#adapter_ty::init_adapter(HOST_FUNCTIONS.get().unwrap()))
-                .map_err(|_| "Cannot initialize cell twice!").unwrap();
-        }
+                // Initialize adapter
+                ADAPTER.set(super::#adapter_ty::init_adapter())
+                    .map_err(|_| "Cannot initialize cell twice!").unwrap();
+            }
 
-        #[safer_ffi::ffi_export]
-        fn get_api() -> safer_ffi::prelude::repr_c::Vec<u8> {
-            let e = "Adapter not initialized";
-            // Get the adapter
-            let adapter = ADAPTER.get().expect(e);
+            #[safer_ffi::ffi_export]
+            fn get_api(dynamite: *const dynamite::Void) -> safer_ffi::prelude::repr_c::Vec<u8> {
+                let e = "Adapter not initialized";
+                // Get the adapter
+                let adapter = ADAPTER.get().expect(e);
 
-            // get the api from the adapter
-            let api = adapter.get_api(HOST_FUNCTIONS.get().expect(e));
+                // Get host functions
+                let pointers = HOST_FUNCTION_POINTERS.get().expect(e);
+                let host_funcs = dynamite::RemoteHostFunctions {
+                    dynamite,
+                    pointers: pointers.clone(),
+                };
 
-            // Serialize the API and return the bytes
-            #macros_private::serde_cbor::to_vec(&api)
-                .expect("Could not serialize language adapter API").into()
-        }
+                // get the api from the adapter
+                let api = adapter.get_api(&host_funcs);
 
-        #[safer_ffi::ffi_export]
-        fn call_function(
-            path: safer_ffi::prelude::str::Ref,
-            args: safer_ffi::prelude::c_slice::Ref<*const Erased>
-        ) -> *const dynamite::Erased {
-            let e = "Adapter not initialized";
-            // Get the adapter
-            let adapter = ADAPTER.get().expect(e);
+                // Serialize the API and return the bytes
+                #macros_private::serde_cbor::to_vec(&api)
+                    .expect("Could not serialize language adapter API").into()
+            }
 
-            // Forward the call to the adapter
-            adapter.call_function(
-                HOST_FUNCTIONS.get().expect(e),
-                path.as_str(),
-                args.as_slice(),
-            )
+            #[safer_ffi::ffi_export]
+            fn call_function(
+                dynamite: *const dynamite::Void,
+                path: safer_ffi::prelude::str::Ref,
+                args: safer_ffi::prelude::c_slice::Ref<*const dynamite::Void>
+            ) -> *const dynamite::Void {
+                let e = "Adapter not initialized";
+                // Get the adapter
+                let adapter = ADAPTER.get().expect(e);
+
+                // Get host functions
+                let pointers = HOST_FUNCTION_POINTERS.get().expect(e);
+                let host_funcs = dynamite::RemoteHostFunctions {
+                    dynamite,
+                    pointers: pointers.clone()
+                };
+
+                // Forward the call to the adapter
+                adapter.call_function(
+                    &host_funcs,
+                    path.as_str(),
+                    args.as_slice(),
+                )
+            }
         }
     };
 
