@@ -1,4 +1,4 @@
-# {{crate}}
+# Dynamite
 
 [![Crates.io](https://img.shields.io/crates/v/{{crate}})](https://crates.io/crates/{{crate}})
 [![Docs.rs](https://docs.rs/{{crate}}/badge.svg)](https://docs.rs/{{crate}})

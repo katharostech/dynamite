@@ -29,12 +29,12 @@ pub struct LoadedDynamicLibLanguageAdapter {
 
 impl<'a> LoadedDynamicLibLanguageAdapter {
     /// Load a dynamic lib language adapter
-    pub fn load<P: AsRef<OsStr>>(
+    pub unsafe fn load<P: AsRef<OsStr>>(
         path: P,
         host_functions: CHostFunctionPointers,
     ) -> Result<Self, dlopen::Error> {
         // Load the dynamic library
-        let api: Container<LanguageAdapterCApi> = unsafe { Container::load(path)? };
+        let api: Container<LanguageAdapterCApi> = Container::load(path)?;
 
         // Initialize the adapter
         api.init_adapter(host_functions);

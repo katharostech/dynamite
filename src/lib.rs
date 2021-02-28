@@ -6,30 +6,37 @@
 //!
 //! Dynamite is not currently usable, but is being developed as a component for the [Arsenal] game
 //! engine.
-//! 
+//!
 //! # Example
-//! 
+//!
 //! ```no_run
 //! use dynamite::*;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Initialize dynamite
 //!     let mut dynamite = Dynamite::new();
-//! 
-//!     // Load langauge adapter
-//!     dynamite.load_dynamic_library_language_adapter("./target/debug/libdynamite_python.so")?;
-//! 
-//!     // Print discovered api
+//!
+//!     // Load langauge adapter ( relatively safe, but still unsafe because dynamic libraries
+//!     // could do _anything_ 👀 )
+//!     unsafe {
+//!         dynamite.load_dynamic_library_language_adapter("./target/debug/libdynamite_python.so")?
+//!     };
+//!
+//!     // Print discovered api. This is a full description of the combined dynamic API loaded from
+//!     // all scripting adapters ( but currrently just the Python one ).
 //!     dbg!(dynamite.get_full_api());
-//! 
+//!
 //!     // Call a function provided by the language adapter ( just assuming for this example that we
-//!     // know ahead of time that this function exists, it would error if it didn't ).
+//!     // know ahead of time that this function exists, it would error if it didn't ). This is also
+//!     // unsafe because your language adapter could mis-behave.
 //!     let arg1 = &42f32;
-//!     dynamite.call_function(
-//!         &"python::test_function".to_string(),
-//!         &[arg1 as *const f32 as *const Void],
-//!     )?;
-//! 
+//!     unsafe {
+//!         dynamite.call_function(
+//!             &"python::test_function".to_string(),
+//!             &[arg1 as *const f32 as *const Void],
+//!         )?;
+//!     }
+//!
 //!     Ok(())
 //! }
 //! ```
@@ -79,7 +86,7 @@ impl Dynamite {
     ///
     /// This allows you to load language adapters from .dll ( Windows ), .so ( Linux ), or .dylib (
     /// Mac ) files.
-    pub fn load_dynamic_library_language_adapter<P: AsRef<OsStr>>(
+    pub unsafe fn load_dynamic_library_language_adapter<P: AsRef<OsStr>>(
         &mut self,
         path: P,
     ) -> Result<(), DynamiteError> {
@@ -133,7 +140,7 @@ impl Dynamite {
     ///
     /// # Errors
     /// Returns an error if the function could not be found
-    pub fn call_function(
+    pub unsafe fn call_function(
         &mut self,
         path: &TypePath,
         args: &[*const Void],
