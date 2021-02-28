@@ -1,34 +1,7 @@
-use std::path::Path;
-
 use crate::{Erased, ScriptApi};
-
-/// The main struct used to create a Dynamite host and load language adapters
-#[derive(Default)]
-pub struct Dynamite {
-    // _adapters: Vec<LanguageAdapter>,
-}
-
-impl Dynamite {
-    /// Create a new dynamite host
-    pub fn new() -> Self {
-        Default::default()
-    }
-
-    /// Load a language adapter
-    pub fn load_adapter<P: AsRef<Path>>(_path: P) -> Result<(), ModuleLoadError> {
-        Ok(())
-    }
-}
-
-#[derive(thiserror::Error, Clone, Debug)]
-#[error("Error loading module")]
-pub enum ModuleLoadError {}
 
 /// Type implementing this trait can be loaded as dynamite language adapters wgeb
 pub trait LanguageAdapter {
-    /// Initialize the language adapter
-    fn init_adapter(host_functions: &HostFunctions) -> Self;
-
     /// Get the [`ScriptApi`] provided by this language adapter
     fn get_api(&self, host_functions: &HostFunctions) -> ScriptApi;
 
@@ -39,6 +12,40 @@ pub trait LanguageAdapter {
         path: &str,
         args: &[*const Erased],
     ) -> *const Erased;
+}
+
+pub trait DynamicLibLanguageAdapter {
+    /// Initialize the language adapter
+    fn init_adapter(host_functions: &HostFunctions) -> Self;
+}
+
+/// A language adapter loaded from a dynamic library
+pub struct LoadedDynamicLibLanguageAdapter {
+    /// the container for the adapter's C API
+    api: Container<LanguageAdapterCApi>,
+}
+
+impl LoadedDynamicLibLanguageAdapter {
+    pub fn new(api: Container<LanguageAdapterCApi>) -> Self {
+        Self { api }
+    }
+}
+
+impl LanguageAdapter for LoadedDynamicLibLanguageAdapter {
+    fn get_api(&self, host_functions: &HostFunctions) -> ScriptApi {
+        serde_cbor::from_slice(&self.api.get_api(host_functions.as_ref()))
+            .expect("Could not parse CBOR api data from language adapter")
+    }
+
+    fn call_function(
+        &self,
+        host_functions: &HostFunctions,
+        path: &str,
+        args: &[*const Erased],
+    ) -> *const Erased {
+        self.api
+            .call_function(host_functions.as_ref(), path.into(), args.into())
+    }
 }
 
 /// Functions provided by the host
@@ -57,7 +64,14 @@ impl HostFunctions {
     }
 }
 
+impl AsRef<CHostFunctions> for HostFunctions {
+    fn as_ref(&self) -> &CHostFunctions {
+        &self.0
+    }
+}
+
 pub use capi::*;
+use dlopen::wrapper::Container;
 #[allow(missing_docs)]
 mod capi {
     use crate::Erased;
@@ -77,14 +91,18 @@ mod capi {
     pub struct LanguageAdapterCApi {
         /// Initialize the language adapter. The implementation is required to be idempotent and
         /// should be allowed to be called multiple times without negative side-effects.
-        init_adapter: fn(args: CHostFunctions),
+        init_adapter: fn(host_functions: &CHostFunctions),
 
         /// Get a catalog of all of the components discovered by the adapter. The return value of
         /// the function must be a vector of bytes in the CBOR format corresponding to a serialized
         /// [`ScriptApi`].
-        get_api: fn() -> safer_ffi::Vec<u8>,
+        get_api: fn(host_functions: &CHostFunctions) -> safer_ffi::Vec<u8>,
 
         /// Execute a function that is hosted by the language adapter.
-        call_function: fn(path: str::Ref, args: c_slice::Ref<*const Erased>) -> *const Erased,
+        call_function: fn(
+            host_functions: &CHostFunctions,
+            path: str::Ref,
+            args: c_slice::Ref<*const Erased>,
+        ) -> *const Erased,
     }
 }

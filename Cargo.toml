@@ -19,7 +19,6 @@ exclude = [
 
 [features]
 default = []
-derive = ["dynamite_macros", "once_cell"]
 
 [workspace]
 members = [
@@ -29,8 +28,8 @@ members = [
 ]
 
 [dependencies]
-dynamite_macros = { version = "0.0.1", path = "./dynamite_macros", optional = true }
-once_cell = { version = "1.7.0", optional = true }
+dynamite_macros = { version = "0.0.1", path = "./dynamite_macros" }
+once_cell = { version = "1.7.0" }
 
 safer-ffi = { version = "0.0.5", features = ["proc_macros"] }
 serde = { version = "1.0.117", features = ["derive"] }

@@ -6,11 +6,15 @@ use dynamite::*;
 #[language_adapter]
 struct PythonAdapter;
 
-impl LanguageAdapter for PythonAdapter {
+impl DynamicLibLanguageAdapter for PythonAdapter {
+    /// Initialize adapter
     fn init_adapter(_host_functions: &HostFunctions) -> Self {
         PythonAdapter
     }
+}
 
+impl LanguageAdapter for PythonAdapter {
+    /// Get the adapter's API
     fn get_api(&self, _host_functions: &HostFunctions) -> ScriptApi {
         let mut components = ScriptApi::default();
 
@@ -31,6 +35,7 @@ impl LanguageAdapter for PythonAdapter {
         components
     }
 
+    /// Call functions provided by this adapter
     fn call_function(
         &self,
         _host_functions: &HostFunctions,

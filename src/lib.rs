@@ -13,18 +13,42 @@
 extern crate dlopen_derive;
 
 mod language_adapter;
+use std::ffi::OsStr;
+
+use dlopen::wrapper::Container;
 pub use language_adapter::*;
 
 mod types;
 pub use types::*;
 
-#[cfg(feature = "derive")]
 pub use dynamite_macros::*;
 
-// Libs used by the macros when the derive feature is enabled
-#[cfg(feature = "derive")]
+// Libs used by the macros
 #[doc(hidden)]
 pub mod _macros_private {
     pub use once_cell;
     pub use serde_cbor;
+}
+
+/// The main struct used to create a Dynamite host and load language adapters
+#[derive(Default)]
+pub struct Dynamite {
+    adapters: Vec<Box<dyn LanguageAdapter>>,
+}
+
+impl Dynamite {
+    /// Create a new dynamite host
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    /// Load a language adapter
+    pub fn load_dynamic_library<P: AsRef<OsStr>>(&mut self, path: P) -> Result<(), dlopen::Error> {
+        let api: Container<LanguageAdapterCApi> = unsafe { Container::load(path)? };
+
+        self.adapters
+            .push(Box::new(LoadedDynamicLibLanguageAdapter::new(api)));
+
+        Ok(())
+    }
 }

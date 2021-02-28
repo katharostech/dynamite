@@ -48,6 +48,7 @@ impl HasDataLayout for StructDefinition {
     }
 }
 
+/// Implemented by types that can define a [`DataLayout`]
 pub trait HasDataLayout {
     fn get_data_layout(&self) -> DataLayout;
 }
@@ -78,7 +79,7 @@ impl DataLayout {
     }
 }
 
-/// The type of component
+/// A data type, usually of a function argument or return value
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum DataType {
     /// A pointer to a different type

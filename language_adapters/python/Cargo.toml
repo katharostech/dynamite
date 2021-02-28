@@ -8,7 +8,7 @@ edition = "2018"
 crate-type = ["cdylib"]
 
 [dependencies]
-dynamite = { path = "../../../dynamite", features = ["derive"] }
+dynamite = { path = "../../../dynamite" }
 safer-ffi = { version = "0.0.5", features = ["proc_macros"] }
 
 rustpython-vm = { git = "https://github.com/RustPython/RustPython.git", rev = "3ce476c13d4daa3366e012a96a5e52e271ed2b29" }
