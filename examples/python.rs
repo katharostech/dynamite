@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-
 use dynamite::*;
 
 /// A Rust function that we want to create bindings to so that it can be called from other lanuguage
