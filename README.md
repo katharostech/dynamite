@@ -103,7 +103,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 _This isn't really a Python language adapter, it's really just Rust, but we'll add Python later 😉_
 
-```no_check
+```rust
 use std::collections::HashMap;
 use dynamite::*;
 

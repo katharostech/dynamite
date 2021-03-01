@@ -97,7 +97,7 @@
 //! 
 //! _This isn't really a Python language adapter, it's really just Rust, but we'll add Python later 😉_
 //! 
-//! ```no_check
+//! ```ignore
 //! use std::collections::HashMap;
 //! use dynamite::*;
 //! 
