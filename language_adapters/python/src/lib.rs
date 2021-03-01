@@ -50,6 +50,10 @@ impl LanguageAdapter for PythonAdapter {
             println!("The number is: {}", number);
 
             dbg!(host_functions.get_full_api());
+
+            unsafe {
+                host_functions.call_function(&"native::rust_func".to_string(), &[]);
+            }
         }
 
         std::ptr::null()

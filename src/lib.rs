@@ -93,6 +93,7 @@ impl Dynamite {
         // Create the C function pointers used to call dynamite functions from the dynamic library
         let pointers = CHostFunctionPointers {
             get_full_api: ffi::dynamite_get_full_api,
+            call_function: ffi::dynamite_call_function,
         };
 
         // Add the language adapter
@@ -135,28 +136,6 @@ impl Dynamite {
 
         Ok(())
     }
-
-    /// Call a function in the api script api
-    ///
-    /// # Errors
-    /// Returns an error if the function could not be found
-    pub unsafe fn call_function(
-        &mut self,
-        path: &TypePath,
-        args: &[*const Void],
-    ) -> Result<*const Void, ApiError> {
-        let adapter = self
-            .adapters
-            .get(
-                *self
-                    .type_adapter_index
-                    .get(path)
-                    .ok_or(ApiError::NotFound(path.clone()))?,
-            )
-            .expect("Internal error finding adapter");
-
-        Ok(adapter.call_function(self, path, args))
-    }
 }
 
 impl HostFunctions for Dynamite {
@@ -173,20 +152,46 @@ impl HostFunctions for Dynamite {
     fn as_dynamite(&self) -> &Dynamite {
         self
     }
+
+    unsafe fn call_function(&self, path: &TypePath, args: &[*const Void]) -> *const Void {
+        let adapter = self
+            .adapters
+            .get(
+                *self
+                    .type_adapter_index
+                    .get(path)
+                    .ok_or(ApiError::NotFound(path.clone()))
+                    .expect("TODO"),
+            )
+            .expect("Internal error finding adapter");
+
+        adapter.call_function(self, path, args)
+    }
 }
 
 mod ffi {
     use super::*;
+    use safer_ffi::prelude::*;
 
     /// C function for getting the full dynamite API
-    pub(super) extern "C" fn dynamite_get_full_api(
-        dynamite: *const Void,
-    ) -> safer_ffi::prelude::repr_c::Vec<u8> {
+    pub(super) extern "C" fn dynamite_get_full_api(dynamite: *const Void) -> repr_c::Vec<u8> {
         let dynamite = unsafe { &*(dynamite as *const Dynamite) };
 
         serde_cbor::to_vec(&dynamite.get_full_api())
             .expect("Could not serialize script API")
             .into()
+    }
+
+    /// C function for calling an API function
+    pub(super) extern "C" fn dynamite_call_function(
+        dynamite: *const Void,
+        path: str::Ref,
+        args: c_slice::Ref<*const Void>,
+    ) -> *const Void {
+        let dynamite = unsafe { &*(dynamite as *const Dynamite) };
+
+        // TODO: Get rid of this `to_string` call
+        unsafe { dynamite.call_function(&path.as_ref().to_string(), &args) }
     }
 }
 

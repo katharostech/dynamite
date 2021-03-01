@@ -1,6 +1,6 @@
 use std::ffi::OsStr;
 
-use crate::{Dynamite, ScriptApi, Void};
+use crate::{Dynamite, ScriptApi, TypePath, Void};
 
 /// Type implementing this trait can be loaded as dynamite language adapters wgeb
 pub trait LanguageAdapter {
@@ -66,10 +66,17 @@ impl LanguageAdapter for LoadedDynamicLibLanguageAdapter {
     }
 }
 
-/// Functions provided by the host
+/// Functions provided by the Dynamite host that can be called from language adapters
 pub trait HostFunctions {
+    /// Used internally: returns a reference to the backing [`Dynamite`] instance
+    #[doc(hidden)]
     fn as_dynamite(&self) -> &Dynamite;
+
+    /// Get the full scripting API as the sum of all language adapters' APIs
     fn get_full_api(&self) -> ScriptApi;
+
+    /// Call a function provided by the scripting API
+    unsafe fn call_function(&self, path: &TypePath, args: &[*const Void]) -> *const Void;
 }
 
 pub use capi::*;
@@ -81,13 +88,32 @@ mod capi {
     use safer_ffi::prelude::*;
 
     /// Pointers to the C functions that the host provides for use by the language adapters
-    #[derive_ReprC]
     #[repr(C)]
-    #[derive(Clone)]
+    #[derive(Clone, Copy)]
     pub struct CHostFunctionPointers {
         /// Get the full CBOR serialized [`ScriptApi`] including components discovered and
         /// implemented by other language adapters or the dynamite host.
         pub get_full_api: extern "C" fn(dynamite: *const Void) -> repr_c::Vec<u8>,
+
+        /// Call a function provided by the scripting API
+        pub call_function: extern "C" fn(
+            dynamite: *const Void,
+            path: str::Ref,
+            args: c_slice::Ref<*const Void>,
+        ) -> *const Void,
+    }
+
+    // TODO: Unsure of the soundness of this workaround to not being able to derive ReprC through
+    // safer_ffi: https://github.com/getditto/safer_ffi/issues/38
+    unsafe impl safer_ffi::layout::CType for CHostFunctionPointers {
+        type OPAQUE_KIND = safer_ffi::layout::OpaqueKind::Concrete;
+    }
+    unsafe impl safer_ffi::layout::ReprC for CHostFunctionPointers {
+        type CLayout = Self;
+        #[inline]
+        fn is_valid(_: &Self::CLayout) -> bool {
+            true
+        }
     }
 
     /// A wrapper that allows idiomatic access to the Rust host functions from a dynamically loaded
@@ -111,6 +137,14 @@ mod capi {
 
         fn as_dynamite(&self) -> &Dynamite {
             unsafe { &*(self.dynamite as *const Dynamite) }
+        }
+
+        unsafe fn call_function(
+            &self,
+            path: &crate::TypePath,
+            args: &[*const Void],
+        ) -> *const Void {
+            (self.pointers.call_function)(self.dynamite, path.as_str().into(), args.into())
         }
     }
 
