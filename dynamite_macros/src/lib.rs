@@ -3,6 +3,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
 
+/// Attribute macro that can be used to implement a Dynamite language adapter
 #[proc_macro_attribute]
 pub fn language_adapter(_args: TokenStream, input: TokenStream) -> TokenStream {
     let input_ = input.clone();

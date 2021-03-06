@@ -8,26 +8,26 @@
 //! engine.
 //!
 //! # Example
-//! 
+//!
 //! ## Host Application
 //!
 //! ```no_run
 //! use std::collections::HashMap;
 //! use dynamite::*;
-//! 
+//!
 //! /// A Rust function that we want to create bindings to so that it can be called from other lanuguage
 //! /// adapters.
 //! fn rust_func() {
 //!     println!("Hello from Rust!!");
 //! }
-//! 
+//!
 //! /// The built-in "language adapter" that will provide bindings to our native Rust
 //! struct NativeLanguageAdapter;
-//! 
+//!
 //! // We implement [`LanguageAdapter`] which is responsible for supplying the [`ScriptApi`] which
 //! // details the available types layouts and functions provided by the adapter, and for calling
 //! // functions provided by the adapter at the request of other adapters or the host.
-//! // 
+//! //
 //! // For this adapter
 //! // we are just going to be providing a binding to the `rust_func` defined above. This function can
 //! // then be called from other adapters such as the Python adapter loaded from a dynamic library
@@ -35,7 +35,7 @@
 //! impl LanguageAdapter for NativeLanguageAdapter {
 //!     fn get_api(&self, _host_functions: &dyn HostFunctions) -> ScriptApi {
 //!         let mut api = ScriptApi::new();
-//! 
+//!
 //!         api.insert(
 //!             "native::rust_func".into(),
 //!             ScriptType::Function(FunctionDefinition {
@@ -43,10 +43,10 @@
 //!                 return_type: None,
 //!             }),
 //!         );
-//! 
+//!
 //!         api
 //!     }
-//! 
+//!
 //!     fn call_function(
 //!         &self,
 //!         _host_functions: &dyn HostFunctions,
@@ -61,23 +61,23 @@
 //!         }
 //!     }
 //! }
-//! 
+//!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Initialize dynamite
 //!     let mut dynamite = Dynamite::new();
-//! 
+//!
 //!     // Add our native Rust adapter
 //!     dynamite.add_language_adapter(Box::new(NativeLanguageAdapter))?;
-//! 
+//!
 //!     // Load langauge adapter ( relatively safe, but still unsafe because dynamic libraries could do
 //!     // _anything_ 👀 )
 //!     unsafe {
 //!         dynamite.load_dynamic_library_language_adapter("./target/debug/libdynamite_python.so")?
 //!     };
-//! 
+//!
 //!     // Print discovered api
 //!     dbg!(dynamite.get_full_api());
-//! 
+//!
 //!     // Call a function provided by the language adapter ( just assuming for this example that we
 //!     // know ahead of time that this function exists, it would error if it didn't ). This is also
 //!     // unsafe because your language adapter could mis-behave.
@@ -88,52 +88,52 @@
 //!             &[arg1 as *const f32 as *const Void],
 //!         );
 //!     }
-//! 
+//!
 //!     Ok(())
 //! }
 //! ```
-//! 
+//!
 //! ## Language Adapter
-//! 
+//!
 //! _This isn't really a Python language adapter, it's really just Rust, but we'll add Python later 😉_
-//! 
+//!
 //! ```ignore
 //! use std::collections::HashMap;
 //! use dynamite::*;
-//! 
+//!
 //! /// The Dynamite Python language adapter
 //! #[language_adapter]
 //! struct PythonAdapter;
-//! 
+//!
 //! impl DynamicLibLanguageAdapter for PythonAdapter {
 //!     /// Initialize adapter
 //!     fn init_adapter() -> Self {
 //!         PythonAdapter
 //!     }
 //! }
-//! 
+//!
 //! impl LanguageAdapter for PythonAdapter {
 //!     /// Get the adapter's API
 //!     fn get_api(&self, _host_functions: &dyn HostFunctions) -> ScriptApi {
 //!         let mut components = ScriptApi::default();
-//! 
+//!
 //!         components.insert(
 //!             "python::test_function".into(),
 //!             ScriptType::Function(FunctionDefinition {
 //!                 arguments: {
 //!                     let mut h = HashMap::new();
-//! 
+//!
 //!                     h.insert("number".into(), "std::f32".into());
-//! 
+//!
 //!                     h
 //!                 },
 //!                 return_type: None,
 //!             }),
 //!         );
-//! 
+//!
 //!         components
 //!     }
-//! 
+//!
 //!     /// Call functions provided by this adapter
 //!     fn call_function(
 //!         &self,
@@ -143,18 +143,18 @@
 //!     ) -> *const dynamite::Void {
 //!         if path == "python::test_function" {
 //!             let arg1 = args[0];
-//! 
+//!
 //!             let number = unsafe { &*(arg1 as *const f32) };
-//! 
+//!
 //!             println!("The number is: {}", number);
-//! 
+//!
 //!             dbg!(host_functions.get_full_api());
-//! 
+//!
 //!             unsafe {
 //!                 host_functions.call_function(&"native::rust_func".to_string(), &[]);
 //!             }
 //!         }
-//! 
+//!
 //!         std::ptr::null()
 //!     }
 //! }
@@ -165,17 +165,20 @@
 #[macro_use]
 extern crate dlopen_derive;
 
-mod language_adapter;
 use std::{collections::HashMap, ffi::OsStr};
 
+// Language adapter traits and types
+mod language_adapter;
 pub use language_adapter::*;
 
-mod types;
-pub use types::*;
+// Script api types
+mod script_api;
+pub use script_api::*;
 
+// Macros
 pub use dynamite_macros::*;
 
-// Libs used by the macros
+// Libs used by the macros but not a part of the public API
 #[doc(hidden)]
 pub mod _macros_private {
     pub use once_cell;
@@ -229,14 +232,14 @@ impl Dynamite {
     pub fn add_language_adapter(
         &mut self,
         adapter: Box<dyn LanguageAdapter>,
-    ) -> Result<(), ApiError> {
+    ) -> Result<(), ScriptApiError> {
         // Load the adapter API
         let api = adapter.get_api(self);
 
         // Check for conflicting types
         for path in api.keys() {
             if self.type_adapter_index.contains_key(path) {
-                return Err(ApiError::TypeRedefined(path.clone()));
+                return Err(ScriptApiError::TypeRedefined(path.clone()));
             }
         }
 
@@ -279,7 +282,7 @@ impl HostFunctions for Dynamite {
                 *self
                     .type_adapter_index
                     .get(path)
-                    .ok_or(ApiError::NotFound(path.clone()))
+                    .ok_or(ScriptApiError::NotFound(path.clone()))
                     .expect("TODO"),
             )
             .expect("Internal error finding adapter");
@@ -322,14 +325,14 @@ mod error {
     #[derive(thiserror::Error, Debug)]
     pub enum DynamiteError {
         #[error("Script API error: {0}")]
-        ApiError(#[from] ApiError),
+        ApiError(#[from] ScriptApiError),
         #[error("Error loading dynamic library: {0}")]
         DynamicLibError(#[from] dlopen::Error),
     }
 
     /// An error that ocurred when trying to access the scripting API
     #[derive(thiserror::Error, Debug)]
-    pub enum ApiError {
+    pub enum ScriptApiError {
         #[error("The requested API element was not found: {0}")]
         NotFound(TypePath),
         #[error("Loaded adapter re-defineds type already defined by another adapter: {0}")]

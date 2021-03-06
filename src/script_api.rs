@@ -1,3 +1,5 @@
+//! Types used to define scripting APIs for language adapters
+
 use safer_ffi::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -15,11 +17,11 @@ mod ty {
     }
 }
 
-/// The path to a scripted type, i.e. the "module" path such as "mygame::physics::RigidBody".
-pub type TypePath = String;
-
 /// A registry of scripted types mapping their unique module path to the type definition.
 pub type ScriptApi = HashMap<TypePath, ScriptType>;
+
+/// The path to a scripted type, i.e. the "module" path such as "mygame::physics::RigidBody".
+pub type TypePath = String;
 
 /// A script-loaded type
 #[derive(Serialize, Deserialize, Debug, Clone)]

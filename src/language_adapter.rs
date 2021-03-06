@@ -1,3 +1,5 @@
+//! Structs and traits for defining language adapters
+
 use std::ffi::OsStr;
 
 use crate::{Dynamite, ScriptApi, TypePath, Void};
