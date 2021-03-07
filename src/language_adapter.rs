@@ -10,7 +10,7 @@ pub trait LanguageAdapter {
     fn get_api(&self, host_functions: &dyn HostFunctions) -> ScriptApi;
 
     /// Call a function provided by the language adapter
-    fn call_function(
+    unsafe fn call_function(
         &self,
         host_functions: &dyn HostFunctions,
         path: &str,
@@ -54,7 +54,7 @@ impl LanguageAdapter for LoadedDynamicLibLanguageAdapter {
         serde_cbor::from_slice(&bytes).expect("Could not parse CBOR api data from language adapter")
     }
 
-    fn call_function(
+    unsafe fn call_function(
         &self,
         host_functions: &dyn HostFunctions,
         path: &str,

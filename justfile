@@ -1,7 +1,7 @@
 readme:
     cargo readme > README.md
 
-run-example example="python": build-adapters
+run-example example="hello_world": build-adapters
     cargo run --package dynamite --example {{example}}
 
 build: build-adapters

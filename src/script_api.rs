@@ -5,6 +5,10 @@ use serde::{Deserialize, Serialize};
 
 use std::{borrow::Cow, collections::HashMap};
 
+// Core trait implementations
+mod impls;
+pub use impls::*;
+
 pub use ty::Void;
 mod ty {
     use safer_ffi::derive_ReprC;
@@ -30,6 +34,13 @@ pub enum ScriptType {
     Struct(StructDefinition),
     /// A function definition
     Function(FunctionDefinition),
+    /// A primitive type
+    Primitive(Primitive),
+}
+
+pub trait HasScriptType {
+    fn script_type() -> ScriptType;
+    fn script_path() -> TypePath;
 }
 
 /// The information necessary to define a component including the component ID and the memory

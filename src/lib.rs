@@ -175,6 +175,10 @@ pub use language_adapter::*;
 mod script_api;
 pub use script_api::*;
 
+// Dynamite stockpile types and implementations
+mod stockpile;
+pub use crate::stockpile::*;
+
 // Macros
 pub use dynamite_macros::*;
 
@@ -183,6 +187,7 @@ pub use dynamite_macros::*;
 pub mod _macros_private {
     pub use once_cell;
     pub use serde_cbor;
+    pub use inventory;
 }
 
 /// The main struct used to create a Dynamite host and load language adapters
@@ -202,6 +207,14 @@ impl Dynamite {
     /// Create a new dynamite host
     pub fn new() -> Self {
         Default::default()
+    }
+
+    /// Add the Dynamite stockpile to the scripting api
+    ///
+    /// The Dynamite stockpile allows you to automatically add all stockpile-integrated API bindings
+    /// from your crate and all other linked crates.
+    pub fn add_stockpile(&mut self) -> Result<(), ScriptApiError> {
+        self.add_language_adapter(Box::new(Stockpile::new()?))
     }
 
     /// Load a language adapter from a dynamically linked library
